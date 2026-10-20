@@ -87,7 +87,7 @@ def resolve_prediction(pred_id, forecast, outcome: float) -> None:
 # ---------------------------------------------------------------
 # PAGE HEADER
 # ---------------------------------------------------------------
-st.title("🎯 Brain Calibration & Predictive Tracker")
+st.title("Brain Calibration & Predictive Tracker")
 
 # Create tabs for clean navigation
 tab1, tab2, tab3 = st.tabs(
