@@ -19,7 +19,7 @@ email = (st.user.email or "").lower()
 # If that key isn't set, any Google account can log in (each with their own data).
 allowed = st.secrets.get("allowed_emails", None)
 if allowed and email not in [str(e).lower() for e in allowed]:
-    st.title("🎯 Brain Calibration & Predictive Tracker")
+    st.title("Brain Calibration & Predictive Tracker")
     st.error("This Google account isn't authorized to use this app.")
     st.button("Log out", on_click=st.logout)
     st.stop()
