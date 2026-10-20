@@ -35,7 +35,7 @@ with tab1:
         question = st.text_input("What is the exact Yes/No Question?", placeholder="e.g., Will Brent Crude close above $91.50 today?")
         prob = st.slider("Your Assured Probability (%)", min_value=1, max_value=99, value=50)
         
-        submit = st.form_submit_with_button("Commit Forecast to Database")
+        submit = st.form_submit_button("Commit Forecast to Database")
         if submit and question:
             new_pred = {
                 "id": len(db["predictions"]) + 1,
@@ -103,4 +103,4 @@ with tab3:
         st.subheader("Historical Log")
         df["Confidence"] = (df["forecast"] * 100).astype(int).astype(str) + "%"
         df["Outcome Result"] = df["outcome"].apply(lambda x: "YES" if x == 1.0 else "NO")
-        st.dataframe(df[["id", "date", "market", "question", "Confidence", "Outcome Result", "brier_score"]], use_container_width=True)
+        st.dataframe(df[["id", "date", "market", "question", "Confidence", "Outcome Result", "brier_score"]], width="stretch")
