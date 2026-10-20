@@ -2,13 +2,14 @@ import streamlit as st
 import pandas as pd
 from sqlalchemy import text
 
-st.set_page_config(page_title="Brain Calibration Terminal", layout="wide")
+st.set_page_config(page_title="Brier Score Trainer", layout="wide")
 
 # ---------------------------------------------------------------
 # LOGIN GATE
 # ---------------------------------------------------------------
 if not st.user.is_logged_in:
-    st.title("Brain Calibration & Predictive Tracker")
+    st.title("Brier Score Trainer")
+    st.caption("Log probability forecasts, resolve them, and see how well calibrated you are.")
     st.write("Log in with Google to open your personal forecast log.")
     st.button("Log in with Google", on_click=st.login)
     st.stop()
@@ -19,7 +20,7 @@ email = (st.user.email or "").lower()
 # If that key isn't set, any Google account can log in (each with their own data).
 allowed = st.secrets.get("allowed_emails", None)
 if allowed and email not in [str(e).lower() for e in allowed]:
-    st.title("Brain Calibration & Predictive Tracker")
+    st.title("Brier Score Trainer")
     st.error("This Google account isn't authorized to use this app.")
     st.button("Log out", on_click=st.logout)
     st.stop()
@@ -87,7 +88,8 @@ def resolve_prediction(pred_id, forecast, outcome: float) -> None:
 # ---------------------------------------------------------------
 # PAGE HEADER
 # ---------------------------------------------------------------
-st.title("Brain Calibration & Predictive Tracker")
+st.title("Brier Score Trainer")
+st.caption("Log probability forecasts, resolve them, and see how well calibrated you are.")
 
 # Create tabs for clean navigation
 tab1, tab2, tab3 = st.tabs(
