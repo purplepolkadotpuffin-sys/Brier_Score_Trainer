@@ -8,7 +8,7 @@ st.set_page_config(page_title="Brain Calibration Terminal", layout="wide")
 # LOGIN GATE
 # ---------------------------------------------------------------
 if not st.user.is_logged_in:
-    st.title("🎯 Brain Calibration & Predictive Tracker")
+    st.title("Brain Calibration & Predictive Tracker")
     st.write("Log in with Google to open your personal forecast log.")
     st.button("Log in with Google", on_click=st.login)
     st.stop()
