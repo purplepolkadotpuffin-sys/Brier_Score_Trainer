@@ -1,6 +1,9 @@
+import re
+
 import streamlit as st
 import pandas as pd
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 
 st.set_page_config(page_title="Brier Score Trainer", layout="wide")
 
@@ -86,14 +89,84 @@ def resolve_prediction(pred_id, forecast, outcome: float) -> None:
 
 
 # ---------------------------------------------------------------
+# LEADERBOARD HELPERS
+# ---------------------------------------------------------------
+MIN_RESOLVED = 20  # resolved forecasts needed to appear on the leaderboard
+NAME_RE = re.compile(r"^[A-Za-z0-9 _.\-]{2,24}$")
+
+
+def get_display_name():
+    names = conn.query(
+        "SELECT display_name FROM profiles WHERE user_email = :email",
+        params={"email": email},
+        ttl=0,
+    )
+    return names["display_name"].iloc[0] if not names.empty else None
+
+
+def save_display_name(name: str) -> None:
+    with conn.session as s:
+        s.execute(
+            text(
+                """
+                INSERT INTO profiles (user_email, display_name)
+                VALUES (:email, :name)
+                ON CONFLICT (user_email)
+                DO UPDATE SET display_name = EXCLUDED.display_name
+                """
+            ),
+            {"email": email, "name": name},
+        )
+        s.commit()
+
+
+def try_save_name(candidate: str):
+    """Returns an error message, or None if the name was saved."""
+    candidate = candidate.strip()
+    if not NAME_RE.match(candidate):
+        return "Use 2 to 24 letters, numbers, spaces, or _ . - (no @)."
+    try:
+        save_display_name(candidate)
+    except IntegrityError:
+        return "That name is taken. Try another."
+    return None
+
+
+def remove_profile() -> None:
+    with conn.session as s:
+        s.execute(
+            text("DELETE FROM profiles WHERE user_email = :email"),
+            {"email": email},
+        )
+        s.commit()
+
+
+def load_leaderboard() -> pd.DataFrame:
+    return conn.query(
+        """
+        SELECT p.display_name, COUNT(*) AS resolved, AVG(pr.brier_score) AS avg_brier
+        FROM predictions pr
+        JOIN profiles p ON p.user_email = pr.user_email
+        WHERE pr.brier_score IS NOT NULL
+        GROUP BY p.display_name
+        HAVING COUNT(*) >= :min_n
+        ORDER BY avg_brier ASC, resolved DESC
+        LIMIT 100
+        """,
+        params={"min_n": MIN_RESOLVED},
+        ttl=0,
+    )
+
+
+# ---------------------------------------------------------------
 # PAGE HEADER
 # ---------------------------------------------------------------
 st.title("Brier Score Trainer")
 st.caption("Log probability forecasts, resolve them, and see how well calibrated you are.")
 
 # Create tabs for clean navigation
-tab1, tab2, tab3 = st.tabs(
-    ["📝 Add Forecast", "⚖️ Resolve Outcomes", "📊 Performance Dashboard"]
+tab1, tab2, tab3, tab4 = st.tabs(
+    ["📝 Add Forecast", "⚖️ Resolve Outcomes", "📊 Performance Dashboard", "🏆 Leaderboard"]
 )
 
 # ---------------------------------------------------------------
@@ -208,3 +281,67 @@ with tab3:
             }
         )
         st.dataframe(table, width="stretch", hide_index=True)
+
+# ---------------------------------------------------------------
+# TAB 4: GLOBAL LEADERBOARD
+# ---------------------------------------------------------------
+with tab4:
+    st.header("Global Leaderboard")
+    st.caption(
+        f"Ranked by average Brier score (lower is better). "
+        f"You need at least {MIN_RESOLVED} resolved forecasts to appear."
+    )
+
+    my_name = get_display_name()
+    n_resolved = int(df["brier_score"].notna().sum())
+
+    if my_name is None:
+        st.info(
+            "Pick a display name to join. Only your name, average score, and number "
+            "of resolved forecasts are shown. Your email and forecasts stay private."
+        )
+        with st.form("join_form"):
+            new_name = st.text_input("Display name", max_chars=24, placeholder="e.g., ForecastFox")
+            join = st.form_submit_button("Join leaderboard")
+        if join:
+            err = try_save_name(new_name)
+            if err:
+                st.error(err)
+            else:
+                st.rerun()
+    else:
+        st.write(f"You're on the leaderboard as **{my_name}**.")
+        if n_resolved < MIN_RESOLVED:
+            st.info(
+                f"You have {n_resolved} resolved forecasts. "
+                f"{MIN_RESOLVED - n_resolved} more to appear on the board."
+            )
+
+    board = load_leaderboard()
+    if board.empty:
+        st.warning("Nobody has qualified yet.")
+    else:
+        board.insert(0, "Rank", range(1, len(board) + 1))
+        board["avg_brier"] = board["avg_brier"].astype(float).round(4)
+        board["Name"] = board["display_name"].where(
+            board["display_name"] != my_name, board["display_name"] + " (you)"
+        )
+        table = board[["Rank", "Name", "avg_brier", "resolved"]].rename(
+            columns={"avg_brier": "Avg Brier Score", "resolved": "Resolved"}
+        )
+        st.dataframe(table, width="stretch", hide_index=True)
+
+    if my_name is not None:
+        with st.expander("Change name or leave the leaderboard"):
+            with st.form("rename_form"):
+                renamed = st.text_input("New display name", value=my_name, max_chars=24)
+                rename = st.form_submit_button("Update name")
+            if rename:
+                err = try_save_name(renamed)
+                if err:
+                    st.error(err)
+                else:
+                    st.rerun()
+            if st.button("Remove me from the leaderboard"):
+                remove_profile()
+                st.rerun()
