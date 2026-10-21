@@ -7,6 +7,8 @@ from sqlalchemy.exc import IntegrityError
 
 st.set_page_config(page_title="Brier Score Trainer", layout="wide")
 
+PRIVACY_URL = "https://purplepolkadotpuffin-sys.github.io/Brier_Score_Trainer/privacy.html"
+
 # ---------------------------------------------------------------
 # LOGIN GATE
 # ---------------------------------------------------------------
@@ -15,6 +17,7 @@ if not st.user.is_logged_in:
     st.caption("Log probability forecasts, resolve them, and see how well calibrated you are.")
     st.write("Log in with Google to open your personal forecast log.")
     st.button("Log in with Google", on_click=st.login)
+    st.caption(f"By logging in you agree to the [Privacy Policy]({PRIVACY_URL}).")
     st.stop()
 
 email = (st.user.email or "").lower()
@@ -212,6 +215,9 @@ with st.sidebar:
             mime="text/csv",
         )
 
+    st.divider()
+    st.markdown(f"[Privacy Policy]({PRIVACY_URL})")
+
 # ---------------------------------------------------------------
 # TAB 2: RESOLVE PREDICTIONS
 # ---------------------------------------------------------------
@@ -280,6 +286,7 @@ with tab3:
                 "Brier Score": resolved["brier_score"],
             }
         )
+
         st.dataframe(table, width="stretch", hide_index=True)
 
 # ---------------------------------------------------------------
